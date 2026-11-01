@@ -1,1 +1,46 @@
 
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Если в репозиторий залит одним архивом ParcelTracker.zip — распаковываем его.
+      - name: Locate project
+        id: proj
+        run: |
+          if [ -f ParcelTracker.zip ]; then
+            mkdir -p _src && unzip -q ParcelTracker.zip -d _src
+            echo "dir=_src/ParcelTracker" >> "$GITHUB_OUTPUT"
+          elif [ -f settings.gradle.kts ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=ParcelTracker" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+
+      - name: Build debug APK
+        working-directory: ${{ steps.proj.outputs.dir }}
+        run: gradle assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ParcelTracker-apk
+          path: ${{ steps.proj.outputs.dir }}/app/build/outputs/apk/debug/*.apk
+
